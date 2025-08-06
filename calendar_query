@@ -1,4 +1,4 @@
-index="calendar"  earliest=1
+index="calendar"  earliest=1  ``` all time to get the recurring events, like annual birthdays```
 | transaction startswith="BEGIN"
 | rex field=_raw "SUMMARY:(?<event>.*)\n"
 
