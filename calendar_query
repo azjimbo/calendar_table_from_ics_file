@@ -1,0 +1,53 @@
+index="calendar"  earliest=1
+| transaction startswith="BEGIN"
+| rex field=_raw "SUMMARY:(?<event>.*)\n"
+
+| rex field=_raw "DTSTART\S*:(?<e_date>.*)[\n|T]"
+| fillnull value="ONCE", FREQ
+| eval recc=if(FREQ="YEARLY","Y","N")
+| eval current = now()
+| eval thisyear=strftime(current, "%Y")
+| eval today = strftime(current, "%Y-%m-%d %H:%M:%S")
+| eval working_date=strptime(e_date,"%Y%m%d")
+
+| eval onday = strftime(working_date, "%d")
+| eval mon = strftime(working_date,"%m")
+| eval year= strftime(working_date,"%Y")
+
+| eval event_date=if(recc="Y",thisyear+""+mon+""+onday,e_date)
+| eval math_date=strptime(event_date,"%Y%m%d")
+| eval dfnw=round((math_date-current)/86400,0)
+| eval math_date=if(dfnw<0 AND recc="Y",math_date+31536000,math_date)
+| eval days=round((math_date-current)/86400,0)
+
+| eval month = case(mon="01","Jan",mon="02","Feb",mon="03","Mar",mon="04","Apr",mon="05","May",mon="06","Jun",mon="07","Jul",mon="08","Aug",mon="09","Sep",mon="10","Oct",mon="11","Nov",mon="12","Dec")
+|eval when=(onday+" "+month)
+
+| eval mon=round(days/30,1)
+| eval In=if(days<31,days+" days", mon+" months")
+| where days>0 |sort + days
+
+|dedup In when event
+
+| head 9  ```this fits it to a specific panel I use in a dashboard```
+|eval event=case(match(event,"Birthday"),"🎁"+event,
+match(event,"Christmas Eve"),"🎅"+event,
+match(event,"Christmas Day"),"🎄"+event,
+match(event,"Valentine"),"🤍"+event,
+match(event,"New Year"),"🥳"+event,
+match(event,"Presidents"),"🎩"+event,
+match(event,"Daylight Saving"),"🕑"+event,
+match(event,"St. Patrick"),"🍀"+event,
+match(event,"Independence"),"🎆"+event,
+match(event,"Halloween"),"🎃"+event,
+match(event,"Easter"),"🐇"+event,
+match(event,"Election"),"🇺🇸"+event, 
+match(event,"Veterans"),"🎖"+event,
+match(event,"Memorial"),"🌺"+event,
+match(_raw,"CLASS:PRIVATE"),"❕ "+event,
+match(event,"Thanksgiving"),"🦃"+event,
+1=1,"⮚"+event)
+
+| eval event = substr(event, 1, 50) ```trim word wrap lines```
+
+| table  In when  event
